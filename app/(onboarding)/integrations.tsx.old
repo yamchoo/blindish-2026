@@ -1,0 +1,280 @@
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { useState, useEffect } from 'react';
+import { router } from 'expo-router';
+import { Colors } from '@/lib/constants/colors';
+import { Typography, Spacing } from '@/lib/constants/typography';
+import { Button } from '@/components/ui/Button';
+import { useAuthStore } from '@/stores/authStore';
+import { spotifyAuthService } from '@/features/auth/services/spotifyAuthService';
+import { youtubeAuthService } from '@/features/auth/services/youtubeAuthService';
+import { IntegrationSuccessModal } from '@/components/onboarding/IntegrationSuccessModal';
+
+export default function IntegrationsScreen() {
+  const { user } = useAuthStore();
+  const [spotifyConnected, setSpotifyConnected] = useState(false);
+  const [youtubeConnected, setYoutubeConnected] = useState(false);
+  const [connectingSpotify, setConnectingSpotify] = useState(false);
+  const [connectingYoutube, setConnectingYoutube] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [connectedPlatform, setConnectedPlatform] = useState<'spotify' | 'youtube' | null>(null);
+
+  const handleConnectSpotify = async () => {
+    if (!user) return;
+
+    setConnectingSpotify(true);
+    const result = await spotifyAuthService.connect(user.id);
+    setConnectingSpotify(false);
+
+    if (result.success) {
+      setSpotifyConnected(true);
+      setConnectedPlatform('spotify');
+      setShowSuccessModal(true);
+    } else {
+      Alert.alert(
+        'Connection Failed',
+        result.error || 'Failed to connect Spotify. Please try again.'
+      );
+    }
+  };
+
+  const handleConnectYoutube = async () => {
+    if (!user) return;
+
+    setConnectingYoutube(true);
+    const result = await youtubeAuthService.connect(user.id);
+    setConnectingYoutube(false);
+
+    if (result.success) {
+      setYoutubeConnected(true);
+      setConnectedPlatform('youtube');
+      setShowSuccessModal(true);
+    } else {
+      Alert.alert(
+        'Connection Failed',
+        result.error || 'Failed to connect YouTube. Please try again.'
+      );
+    }
+  };
+
+  const handleModalContinue = () => {
+    setShowSuccessModal(false);
+    setConnectedPlatform(null);
+  };
+
+  const handleContinue = () => {
+    router.push('/(onboarding)/analysis');
+  };
+
+  const handleSkip = () => {
+    router.push('/(onboarding)/analysis');
+  };
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Connect Your Accounts</Text>
+        <Text style={styles.subtitle}>
+          Help us understand you better by connecting Spotify or YouTube.
+          {'\n'}We'll analyze your music taste and interests to find better matches.
+        </Text>
+      </View>
+
+      <View style={styles.cardsContainer}>
+        {/* Spotify Card */}
+        <TouchableOpacity
+          style={[styles.card, spotifyConnected && styles.cardConnected]}
+          onPress={spotifyConnected ? undefined : handleConnectSpotify}
+          disabled={connectingSpotify || spotifyConnected}
+        >
+          <View style={styles.cardHeader}>
+            <View style={styles.iconContainer}>
+              <Text style={styles.icon}>🎵</Text>
+            </View>
+            <View style={styles.cardTitleContainer}>
+              <Text style={styles.cardTitle}>Spotify</Text>
+              {spotifyConnected && (
+                <Text style={styles.connectedBadge}>✓ Connected</Text>
+              )}
+            </View>
+          </View>
+
+          <Text style={styles.cardDescription}>
+            We'll analyze your top artists, favorite tracks, and music genres to understand
+            your personality better.
+          </Text>
+
+          {!spotifyConnected && (
+            <View style={styles.cardButton}>
+              <Button
+                onPress={handleConnectSpotify}
+                loading={connectingSpotify}
+                variant="secondary"
+              >
+                Connect Spotify
+              </Button>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        {/* YouTube Card */}
+        <TouchableOpacity
+          style={[styles.card, youtubeConnected && styles.cardConnected]}
+          onPress={youtubeConnected ? undefined : handleConnectYoutube}
+          disabled={connectingYoutube || youtubeConnected}
+        >
+          <View style={styles.cardHeader}>
+            <View style={styles.iconContainer}>
+              <Text style={styles.icon}>📺</Text>
+            </View>
+            <View style={styles.cardTitleContainer}>
+              <Text style={styles.cardTitle}>YouTube</Text>
+              {youtubeConnected && (
+                <Text style={styles.connectedBadge}>✓ Connected</Text>
+              )}
+            </View>
+          </View>
+
+          <Text style={styles.cardDescription}>
+            We'll analyze your subscriptions and liked videos to learn about your interests
+            and values.
+          </Text>
+
+          {!youtubeConnected && (
+            <View style={styles.cardButton}>
+              <Button
+                onPress={handleConnectYoutube}
+                loading={connectingYoutube}
+                variant="secondary"
+              >
+                Connect YouTube
+              </Button>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.footer}>
+        <Button onPress={handleContinue}>Continue</Button>
+
+        <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
+          <Text style={styles.skipText}>Skip for Now</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.note}>
+          You can connect these later in your profile settings
+        </Text>
+      </View>
+
+      {/* Success Modal */}
+      <IntegrationSuccessModal
+        visible={showSuccessModal}
+        platform={connectedPlatform}
+        onContinue={handleModalContinue}
+      />
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.light.background,
+  },
+  content: {
+    padding: Spacing.lg,
+    paddingBottom: Spacing.xl * 2,
+  },
+  header: {
+    marginBottom: Spacing.xl,
+  },
+  title: {
+    fontFamily: 'Cormorant-Bold',
+    fontSize: Typography.sizes['3xl'],
+    color: Colors.light.text.primary,
+    marginBottom: Spacing.sm,
+  },
+  subtitle: {
+    fontFamily: 'Inter',
+    fontSize: Typography.sizes.base,
+    color: Colors.light.text.secondary,
+    lineHeight: 24,
+  },
+  cardsContainer: {
+    gap: Spacing.md,
+    marginBottom: Spacing.xl,
+  },
+  card: {
+    backgroundColor: Colors.light.surface,
+    borderRadius: 16,
+    padding: Spacing.lg,
+    borderWidth: 2,
+    borderColor: Colors.light.border,
+  },
+  cardConnected: {
+    borderColor: Colors.interactive.primary,
+    backgroundColor: 'rgba(255, 107, 107, 0.05)',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  iconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.light.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.md,
+  },
+  icon: {
+    fontSize: 32,
+  },
+  cardTitleContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cardTitle: {
+    fontFamily: 'Inter-SemiBold',
+    fontSize: Typography.sizes.xl,
+    color: Colors.light.text.primary,
+  },
+  connectedBadge: {
+    fontFamily: 'Inter-Medium',
+    fontSize: Typography.sizes.sm,
+    color: Colors.interactive.primary,
+  },
+  cardDescription: {
+    fontFamily: 'Inter',
+    fontSize: Typography.sizes.sm,
+    color: Colors.light.text.secondary,
+    lineHeight: 20,
+    marginBottom: Spacing.md,
+  },
+  cardButton: {
+    marginTop: Spacing.sm,
+  },
+  footer: {
+    marginTop: Spacing.xl,
+    gap: Spacing.md,
+  },
+  skipButton: {
+    alignItems: 'center',
+    padding: Spacing.md,
+  },
+  skipText: {
+    fontFamily: 'Inter-Medium',
+    fontSize: Typography.sizes.base,
+    color: Colors.light.text.secondary,
+  },
+  note: {
+    fontFamily: 'Inter',
+    fontSize: Typography.sizes.sm,
+    color: Colors.light.text.tertiary,
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+  },
+});
